@@ -4,7 +4,7 @@ AgentGPT lets you configure and deploy autonomous AI agents from the browser. Na
 
 Architecture:
 
-- **Frontend** (`next/`) — Next.js 13 + TypeScript + TailwindCSS, auth via NextAuth.
+- **Frontend** (`next/`) — Next.js 13 + TypeScript + TailwindCSS + Zod, auth via NextAuth + Prisma.
 - **Backend** (`platform/`) — FastAPI + SQLModel + Pydantic.
 - **Database** — MySQL (Planetscale).
 - **LLM tooling** — LangChain.
