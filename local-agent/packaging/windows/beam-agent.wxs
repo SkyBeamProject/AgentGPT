@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="5E1D8A44-6C20-4A7B-9F33-8B2D1E0C4A67"
+           Name="Beam Agent"
+           Language="1033"
+           Version="$(var.ProductVersion)"
+           Manufacturer="SkyBeam Project"
+           UpgradeCode="7B6E2C1A-5D44-4E3A-9C1F-2A8E4B0D6F11">
+    <Package InstallerVersion="500" Compressed="yes" Description="Local autonomous agent" />
+    <Media Id="1" Cabinet="beam.cab" EmbedCab="yes" />
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="INSTALLDIR" Name="Beam Agent">
+          <Component Id="MainExecutable" Guid="3F9A1C72-8E24-4B6D-A1C5-6D0E9B2A4C18">
+            <File Id="BeamAgentEXE" Name="beam-agent.exe" Source="beam-agent.exe" KeyPath="yes" />
+          </Component>
+          <Component Id="Docs" Guid="C4D85E19-2A67-4F10-9B33-1E6A8C0D5F42">
+            <File Id="LicenseFile" Name="LICENSE.txt" Source="LICENSE.txt" KeyPath="yes" />
+            <File Id="SourceFile" Name="SOURCE.txt" Source="SOURCE.txt" />
+          </Component>
+        </Directory>
+      </Directory>
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ApplicationProgramsFolder" Name="Beam Agent">
+          <Component Id="ApplicationShortcut" Guid="9C4E7A20-1B55-4F83-8D6A-2E5C0B7F1A93">
+            <Shortcut Id="ApplicationStartMenuShortcut"
+                      Name="Beam Agent"
+                      Description="Local autonomous agent"
+                      Target="[INSTALLDIR]beam-agent.exe"
+                      WorkingDirectory="INSTALLDIR" />
+            <RegistryValue Root="HKCU"
+                           Key="Software\SkyBeam\BeamAgent"
+                           Name="installed"
+                           Type="integer"
+                           Value="1"
+                           KeyPath="yes" />
+          </Component>
+        </Directory>
+      </Directory>
+    </Directory>
+
+    <Feature Id="Main" Title="Beam Agent" Level="1">
+      <ComponentRef Id="MainExecutable" />
+      <ComponentRef Id="Docs" />
+      <ComponentRef Id="ApplicationShortcut" />
+    </Feature>
+  </Product>
+</Wix>

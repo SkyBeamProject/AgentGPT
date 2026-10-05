@@ -51,5 +51,10 @@ yarn-error.log*
 # Sentry Auth Token
 .sentryclirc
 /volumes/
+
+# Local Beam Agent build output
+/local-agent/dist/
+/local-agent/**/*.syso
+/local-agent/packaging/windows/beam-agent.rc
 schema.prismae
 *.sql

@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="beam-token" content="__BEAM_TOKEN__">
+  <meta name="beam-version" content="__BEAM_VERSION__">
+  <title>Beam Agent</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f3f0e8;
+      --card: #fffdf8;
+      --ink: #1d1a16;
+      --muted: #5e584f;
+      --line: #e3dccf;
+      --accent: #0f6e56;
+      --accent-ink: #f4fbf8;
+      --warn: #8a3b12;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 15px/1.45 "Segoe UI", "Helvetica Neue", sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+    }
+    header, main { width: min(1080px, calc(100% - 32px)); margin: 0 auto; }
+    header { display: flex; justify-content: space-between; gap: 16px; align-items: end; padding: 28px 0 12px; }
+    h1, h2 { margin: 0; letter-spacing: -0.03em; }
+    h1 { font-size: 28px; }
+    h2 { font-size: 16px; margin-bottom: 10px; }
+    .eyebrow, .meta { margin: 0; color: var(--muted); }
+    .eyebrow { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+    main { display: grid; grid-template-columns: 280px 1fr; gap: 16px; padding-bottom: 48px; }
+    section { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+    label { display: block; margin: 10px 0; font-size: 13px; color: var(--muted); }
+    input, textarea, button { font: inherit; color: inherit; }
+    input[type="text"], input[type="password"], input[type="number"], textarea {
+      width: 100%; margin-top: 4px; padding: 8px 10px; border: 1px solid var(--line);
+      border-radius: 8px; background: #fff;
+    }
+    textarea { resize: vertical; }
+    button, .agent {
+      border: 0; border-radius: 8px; padding: 8px 12px; background: var(--accent);
+      color: var(--accent-ink); cursor: pointer;
+    }
+    button.secondary, button.agent { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+    button:disabled { opacity: 0.55; cursor: not-allowed; }
+    button.agent { display: block; width: 100%; text-align: left; margin: 0 0 6px; }
+    button.agent[aria-pressed="true"] { border-color: var(--accent); background: #e7f4ef; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .check { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; color: var(--ink); }
+    .check .warn { flex: 1 1 14rem; }
+    .check input { width: auto; margin-top: 3px; }
+    .warn { color: var(--warn); }
+    #status { min-height: 1.4em; color: var(--muted); }
+    #log { display: flex; flex-direction: column; gap: 8px; max-height: 60vh; overflow: auto; }
+    .event { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+    .event.error { border-color: #e3b4b4; }
+    .event pre { white-space: pre-wrap; word-break: break-word; margin: 6px 0 0; font: 12px/1.4 "Cascadia Mono", "Segoe UI Mono", ui-monospace, monospace; }
+    .k { margin: 0; font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+    .muted { color: var(--muted); }
+    details summary { cursor: pointer; font-weight: 600; }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    @media (max-width: 800px) {
+      header { flex-direction: column; align-items: start; }
+      main { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <p class="eyebrow">Local agent</p>
+      <h1>Beam Agent</h1>
+    </div>
+    <p class="meta" id="version"></p>
+  </header>
+  <main>
+    <section>
+      <h2>Agents</h2>
+      <div id="agent-list"></div>
+      <form id="agent-form">
+        <label>Name <input id="agent-name" type="text" required maxlength="40" autocomplete="off"></label>
+        <label>Persona <textarea id="agent-persona" rows="6" required></textarea></label>
+        <div class="row">
+          <button type="submit">Save agent</button>
+          <button type="button" id="delete-agent" class="secondary">Delete</button>
+        </div>
+      </form>
+    </section>
+    <section>
+      <details>
+        <summary>Model and workspace</summary>
+        <form id="settings-form">
+        <div class="row">
+          <button type="button" id="preset-openai" class="secondary">OpenAI</button>
+          <button type="button" id="preset-ollama" class="secondary">Ollama on this computer</button>
+          <button type="button" id="test-conn" class="secondary">Test connection</button>
+        </div>
+        <label>Base URL <input id="base-url" type="text" autocomplete="off"></label>
+        <label>Model <input id="model" type="text" autocomplete="off"></label>
+        <label>API key <input id="api-key" type="password" autocomplete="off"></label>
+        <button type="button" id="clear-key" class="secondary">Clear saved key</button>
+        <label>Workspace <input id="workspace" type="text" autocomplete="off"></label>
+        <label>Step limit <input id="max-steps" type="number" min="1" max="40"></label>
+        <label class="check"><input id="allow-shell" type="checkbox"> Allow shell commands in the workspace <span class="warn">This can change files and run programs on this computer.</span></label>
+        <button type="submit" id="save-settings">Save settings</button>
+        </form>
+      </details>
+      <label>Goal <textarea id="goal" rows="4" placeholder="What should this agent do?"></textarea></label>
+      <label class="check"><input id="mock" type="checkbox"> Practice run without calling a model</label>
+      <div class="row">
+        <button type="button" id="run" disabled>Run</button>
+        <button type="button" id="stop" class="secondary" disabled>Stop</button>
+      </div>
+      <p id="status" role="status">Loading…</p>
+      <div id="log" aria-live="polite">
+        <p class="muted" id="empty-log">Nothing yet. A practice run works without an API key.</p>
+      </div>
+    </section>
+  </main>
+  <script>
+    const token = document.querySelector('meta[name="beam-token"]').content;
+    const version = document.querySelector('meta[name="beam-version"]').content;
+    document.getElementById("version").textContent = "Version " + version;
+
+    let agents = [];
+    let selected = "";
+    let runId = "";
+    let cursor = 0;
+    let polling = false;
+
+    function esc(s) {
+      return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+        return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c];
+      });
+    }
+
+    async function api(path, opts) {
+      const options = opts || {};
+      const headers = { "X-Beam-Token": token };
+      if (options.body) headers["Content-Type"] = "application/json";
+      const res = await fetch(path, { method: options.method || "GET", headers: headers, body: options.body });
+      const text = await res.text();
+      let data = null;
+      if (text) {
+        try { data = JSON.parse(text); } catch (e) { data = { error: text }; }
+      }
+      if (!res.ok) {
+        throw new Error((data && data.error) || res.statusText);
+      }
+      return data;
+    }
+
+    function setStatus(text) { document.getElementById("status").textContent = text; }
+
+    function renderAgents() {
+      const list = document.getElementById("agent-list");
+      list.replaceChildren();
+      agents.forEach(function (agent) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "agent";
+        btn.textContent = agent.name;
+        btn.setAttribute("aria-pressed", agent.name === selected ? "true" : "false");
+        btn.addEventListener("click", function () {
+          selected = agent.name;
+          fillPersona();
+          renderAgents();
+        });
+        list.appendChild(btn);
+      });
+    }
+
+    function fillPersona() {
+      const agent = agents.find(function (item) { return item.name === selected; });
+      document.getElementById("agent-name").value = agent ? agent.name : "";
+      document.getElementById("agent-persona").value = agent ? agent.persona : "";
+    }
+
+    function fillSettings(cfg) {
+      document.getElementById("base-url").value = cfg.base_url || "";
+      document.getElementById("model").value = cfg.model || "";
+      document.getElementById("workspace").value = cfg.workspace || "";
+      document.getElementById("max-steps").value = cfg.max_steps || 12;
+      document.getElementById("allow-shell").checked = !!cfg.allow_shell;
+      const key = document.getElementById("api-key");
+      key.value = "";
+      key.placeholder = cfg.has_api_key ? "Saved (" + (cfg.key_source || "file") + ")" : "Not set";
+    }
+
+    async function load() {
+      const cfg = await api("/api/config");
+      agents = cfg.agents || [];
+      if (!agents.some(function (agent) { return agent.name === selected; })) {
+        selected = agents[0] ? agents[0].name : "";
+      }
+      fillSettings(cfg);
+      renderAgents();
+      fillPersona();
+      if (!polling) {
+        document.getElementById("run").disabled = false;
+        setStatus("Ready");
+      }
+    }
+
+    async function saveSettings() {
+      const body = {
+        base_url: document.getElementById("base-url").value.trim(),
+        model: document.getElementById("model").value.trim(),
+        workspace: document.getElementById("workspace").value.trim(),
+        max_steps: Number(document.getElementById("max-steps").value),
+        allow_shell: document.getElementById("allow-shell").checked
+      };
+      const key = document.getElementById("api-key").value.trim();
+      if (key) body.api_key = key;
+      await api("/api/config", { method: "PUT", body: JSON.stringify(body) });
+      await load();
+    }
+
+    document.getElementById("settings-form").addEventListener("submit", function (e) {
+      e.preventDefault();
+      saveSettings().then(function () { setStatus("Settings saved"); }).catch(function (err) { setStatus(err.message); });
+    });
+
+    function applyPreset(name) {
+      api("/api/config/preset", { method: "POST", body: JSON.stringify({ name: name }) })
+        .then(load)
+        .then(function () { setStatus(name === "ollama" ? "Preset set to Ollama on this computer" : "Preset set to OpenAI"); })
+        .catch(function (err) { setStatus(err.message); });
+    }
+    document.getElementById("preset-openai").addEventListener("click", function () { applyPreset("openai"); });
+    document.getElementById("preset-ollama").addEventListener("click", function () { applyPreset("ollama"); });
+
+    document.getElementById("test-conn").addEventListener("click", function () {
+      saveSettings().then(function () {
+        setStatus("Checking the model server…");
+        return api("/api/test", { method: "POST" });
+      }).then(function (res) {
+        const names = (res.models || []).slice(0, 6).join(", ");
+        setStatus(names ? "Connected. Models: " + names : "Connected.");
+      }).catch(function (err) { setStatus(err.message); });
+    });
+
+    document.getElementById("clear-key").addEventListener("click", function () {
+      api("/api/config", { method: "PUT", body: JSON.stringify({ clear_api_key: true }) })
+        .then(load)
+        .then(function () { setStatus("API key cleared"); })
+        .catch(function (err) { setStatus(err.message); });
+    });
+
+    document.getElementById("agent-form").addEventListener("submit", function (e) {
+      e.preventDefault();
+      const name = document.getElementById("agent-name").value.trim();
+      const persona = document.getElementById("agent-persona").value.trim();
+      api("/api/agents", { method: "POST", body: JSON.stringify({ name: name, persona: persona }) })
+        .then(function () { selected = name; return load(); })
+        .then(function () { setStatus("Saved agent " + name); })
+        .catch(function (err) { setStatus(err.message); });
+    });
+
+    document.getElementById("delete-agent").addEventListener("click", function () {
+      const name = document.getElementById("agent-name").value.trim();
+      if (!name) return;
+      api("/api/agents", { method: "DELETE", body: JSON.stringify({ name: name }) })
+        .then(function () { selected = ""; return load(); })
+        .then(function () { setStatus("Deleted " + name); })
+        .catch(function (err) { setStatus(err.message); });
+    });
+
+    function renderEvent(ev) {
+      const empty = document.getElementById("empty-log");
+      if (empty) empty.remove();
+      const el = document.createElement("article");
+      el.className = "event " + (ev.kind || "");
+      let html = "";
+      if (ev.kind === "action") {
+        html = '<p class="k">Step ' + esc(ev.step) + " · " + esc(ev.tool) + "</p>";
+        if (ev.thought) html += "<p>" + esc(ev.thought) + "</p>";
+        if (ev.args && Object.keys(ev.args).length) html += "<pre>" + esc(JSON.stringify(ev.args, null, 2)) + "</pre>";
+      } else if (ev.kind === "observation" || ev.kind === "status") {
+        html = '<p class="k">' + (ev.kind === "status" ? "Note" : "Result") + "</p><pre>" + esc(ev.observation || "") + "</pre>";
+      } else if (ev.kind === "done") {
+        html = '<p class="k">Finished</p><p>' + esc(ev.summary || "") + "</p>";
+        setStatus(ev.summary || "Finished");
+      } else if (ev.kind === "error") {
+        html = '<p class="k">Error</p><p>' + esc(ev.error || "") + "</p>";
+        setStatus(ev.error || "Error");
+      } else {
+        html = "<p>" + esc(ev.summary || ev.observation || ev.error || "") + "</p>";
+      }
+      el.innerHTML = html;
+      const log = document.getElementById("log");
+      log.appendChild(el);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    async function poll() {
+      if (!runId) return;
+      try {
+        const res = await api("/api/runs/" + encodeURIComponent(runId) + "?cursor=" + cursor);
+        (res.events || []).forEach(renderEvent);
+        cursor = res.cursor;
+        if (!res.done) {
+          setTimeout(poll, 400);
+          return;
+        }
+      } catch (err) {
+        setStatus(err.message);
+      }
+      polling = false;
+      document.getElementById("run").disabled = false;
+      document.getElementById("stop").disabled = true;
+    }
+
+    document.getElementById("run").addEventListener("click", function () {
+      const goal = document.getElementById("goal").value.trim();
+      if (!goal) { setStatus("Write a goal first"); return; }
+      if (!selected) { setStatus("Choose or save an agent first"); return; }
+      polling = true;
+      document.getElementById("run").disabled = true;
+      document.getElementById("stop").disabled = false;
+      document.getElementById("log").replaceChildren();
+      setStatus("Running…");
+      saveSettings().then(function () {
+        return api("/api/runs", {
+          method: "POST",
+          body: JSON.stringify({ agent: selected, goal: goal, mock: document.getElementById("mock").checked })
+        });
+      }).then(function (res) {
+        runId = res.id;
+        cursor = 0;
+        poll();
+      }).catch(function (err) {
+        polling = false;
+        document.getElementById("run").disabled = false;
+        document.getElementById("stop").disabled = true;
+        setStatus(err.message);
+      });
+    });
+
+    document.getElementById("stop").addEventListener("click", function () {
+      if (!runId) return;
+      api("/api/runs/" + encodeURIComponent(runId) + "/stop", { method: "POST" })
+        .then(function () { setStatus("Stopping…"); })
+        .catch(function (err) { setStatus(err.message); });
+    });
+
+    document.getElementById("goal").addEventListener("keydown", function (e) {
+      if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        document.getElementById("run").click();
+      }
+    });
+
+    load().catch(function (err) { setStatus(err.message); });
+  </script>
+</body>
+</html>
