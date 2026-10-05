@@ -80,6 +80,10 @@ Before you get started, please make sure you have the following installed:
 
 Happy hacking! :tada:
 
+## Local Windows app
+
+[`local-agent`](local-agent/README.md) is a separate agent you can install on your own computer. It does not need Docker, MySQL, or this web app. `./local-agent/packaging/build.sh` writes a portable `.exe`, a setup `.exe`, and an `.msi`. An MSIX package can be built on Windows with `local-agent/packaging/windows/build-msix.ps1`.
+
 ## 🎉 Roadmap
 
 This platform is currently in beta, a full list of completed and planed features can be found on
